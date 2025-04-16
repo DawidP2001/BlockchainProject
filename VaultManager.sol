@@ -5,19 +5,11 @@ pragma solidity ^0.8.13;
 error Unauthorised();
 
 contract VaultManager {
-    enum Status {
-        Todo,
-        Doing,
-        Done,
-        Canceled
-    }
 
     // A single Task stores three things: a name
     // (e.g., Wash the Car), a status (enumerated type),
     // and an owner (EVM-compatiable address)
     struct Vault {
-        string name;
-        Status status;
         address owner;
     }
 
@@ -31,10 +23,8 @@ contract VaultManager {
     event VaultWithdraw(unit256 id, address owner, unit256 amount);
 
 
-    // Our Task Manager has an array of tasks.  The index
-    // in the array identifies the task, i.e., Task #0,
-    // Task #1, etc.
-    Task[] public tasks;
+    // Vault manager stores several vaults
+    Vault[] public vaults;
 
     // Our Task Manager has a mapping from addresses to the
     // IDs of the tasks they own.
@@ -42,20 +32,16 @@ contract VaultManager {
     // 0x02 -> [2, ...]
     // 0x03 -> [4, ...]
     // ...
-    mapping(address => uint256[]) public tasksByOwner;
+    mapping(address => uint256[]) public vaultsByOwner;
 
     // Modifier onlyOwner
-
     modifier onlyOwner(uint256 _vaultId) {
-        // Check if the owner of the task matches the creator of the tx.  Only
-        // owners can change the status of their tasks.
-        if (tasks[_taskId].owner != msg.sender) {
+        // Makes sure only owner can access
+        if (vaults[_vaultId].owner != msg.sender) {
             revert Unauthorised();
         }
-        // Everything okay, continue on...
         _;
     }
-
 
     // Most important function in the contract.  It adds a new task to the
     // Task Manager.
@@ -112,6 +98,6 @@ contract VaultManager {
     }
 
     function getMyVaults() {
-        
+
     }
 }
