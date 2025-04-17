@@ -6,32 +6,25 @@ error Unauthorised();
 
 contract VaultManager {
 
-    // A single Task stores three things: a name
-    // (e.g., Wash the Car), a status (enumerated type),
-    // and an owner (EVM-compatiable address)
     struct Vault {
-        address owner;
+        address owner;   // address of the owner of the vault
+        uint256 balance; // The balance in a vault
     }
 
-    // VaultAdded event
+    // Logs whenever a vault is added
     event VaultAdded(uint256 id, address owner);
 
-    // VaultDeposit event
-    event VaultDeposit(unit256 id, address owner, unit256 amount);
+    // Logs whenever a deposit is made
+    event VaultDeposit(uint256 id, address owner, uint256 amount);
 
-    // VaultWithdraw event
-    event VaultWithdraw(unit256 id, address owner, unit256 amount);
+    // Logs whenever a withdraw is made
+    event VaultWithdraw(uint256 id, address owner, uint256 amount);
 
 
     // Vault manager stores several vaults
     Vault[] public vaults;
 
-    // Our Task Manager has a mapping from addresses to the
-    // IDs of the tasks they own.
-    // 0x01 -> [0, 3, 1, ...]
-    // 0x02 -> [2, ...]
-    // 0x03 -> [4, ...]
-    // ...
+    // mapping for vaultsByOwner
     mapping(address => uint256[]) public vaultsByOwner;
 
     // Modifier onlyOwner
@@ -43,61 +36,59 @@ contract VaultManager {
         _;
     }
 
-    // Most important function in the contract.  It adds a new task to the
-    // Task Manager.
-    function addVault(
-        string calldata _name,
-        Status _status
-    ) public returns (uint256 index) {
-        // 1. Create a Task struct.
-        Task memory task = Task({
-            name: _name,
-            status: _status,
-            owner: msg.sender
+    // adds a vault to the manager
+    function addVault() public returns (uint256 index) {
+        // 1. Create a vault struct.
+        Vault memory vault = Vault({
+            owner:  msg.sender, // Sets owner to message sender
+            balance: 0
         });
 
-        // 2. Add it to the array.
-        tasks.push(task);
+        // 2. Adds it to the  vault array.
+        vaults.push(vault);
 
-        // 3. Get the ID of the task.
-        index = tasks.length - 1;
+        // 3. Get the ID of the vault.
+        index = vaults.length - 1;
 
-        // 4. Add it to the mapping, tasksByOwner.
-        tasksByOwner[msg.sender].push(index);
+        // 4. Add it to the mapping, vaultsByOwner.
+        vaultsByOwner[msg.sender].push(index);
 
-        // 5. Fire off the TaskAdded event.
-        emit TaskAdded(index, _name, _status, msg.sender);
+        // 5. Fire off the VaultAdded event.
+        emit VaultAdded(index, msg.sender);
+    }
+
+    // Deposit into a vault
+    function deposit(uint256 _vaultId) public payable onlyOwner(_vaultId) {
+        require(_vaultId < vaults.length, "Vault does not exist");
+        vaults[_vaultId].balance += msg.value;
+        emit VaultDeposit(_vaultId, msg.sender, msg.value);
+    }
+
+    // Withdraw from a vault
+    function withdraw(uint256 _vaultId, uint256 amount) public onlyOwner(_vaultId) {
+
+        require(vaults[_vaultId].balance >= amount, "Insufficient balance");
+        vaults[_vaultId].balance -= amount;
+        payable(msg.sender).transfer(amount);
+        emit VaultWithdraw(_vaultId, msg.sender, amount);
+
     }
 
 
-    function deposit(
-        uint256 _taskId,
-        Status _status
-    ) public onlyOwner(_taskId) {
-        tasks[_taskId].status = _status;
-    }
-
-    function withdraw(
-        uint256 _taskId
-    ) public view returns (string memory name, Status status, address owner) {
-        name = tasks[_taskId].name;
-        status = tasks[_taskId].status;
-        owner = tasks[_taskId].owner;
-    }
-
-
-    // Returns the number of tasks in the task manager.
-    function getVault() public view returns (uint256) {
-        return tasks.length;
+    // Returns information about a vault
+    function getVault(uint256 _vaultId) public view returns (address _owner, uint256 _balance) {
+        _owner = vaults[_vaultId].owner;
+        _balance = vaults[_vaultId].balance;
     }
 
 
     // Returns the IDs of the tasks the users owns.
-    function getVaultsLength() public view returns (uint256[] memory) {
-        return tasksByOwner[msg.sender];
+    function getVaultsLength() public view returns (uint256) {
+        return vaults.length;
     }
 
-    function getMyVaults() {
-
+    // Retunrs which vaults are owned by the message sender
+    function getMyVaults() public view returns (uint256[] memory){
+        return vaultsByOwner[msg.sender];
     }
 }

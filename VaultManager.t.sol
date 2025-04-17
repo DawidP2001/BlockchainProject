@@ -2,11 +2,11 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import {TaskManager} from "../src/TaskManager.sol";
+import {VaultManager} from "../src/VaultManager.sol";
 
-contract TaskManagerTest is Test {
+contract VaultManagerTest is Test {
 
-    TaskManager public taskManager;
+    VaultManager public VaultManager;
     address public alice;
     address public bob;
 
