@@ -65,7 +65,6 @@ contract VaultManager {
 
     // Withdraw from a vault
     function withdraw(uint256 _vaultId, uint256 amount) public onlyOwner(_vaultId) {
-
         require(vaults[_vaultId].balance >= amount, "Insufficient balance");
         vaults[_vaultId].balance -= amount;
         payable(msg.sender).transfer(amount);
@@ -75,6 +74,7 @@ contract VaultManager {
 
     // Returns information about a vault
     function getVault(uint256 _vaultId) public view returns (address _owner, uint256 _balance) {
+        require(_vaultId < vaults.length, "Vault does not exist"); // Explicit check for valid ID
         _owner = vaults[_vaultId].owner;
         _balance = vaults[_vaultId].balance;
     }
