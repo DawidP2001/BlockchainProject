@@ -20,7 +20,6 @@ contract VaultManager {
     // Logs whenever a withdraw is made
     event VaultWithdraw(uint256 id, address owner, uint256 amount);
 
-
     // Vault manager stores several vaults
     Vault[] public vaults;
 
@@ -74,13 +73,11 @@ contract VaultManager {
 
     }
 
-
     // Returns information about a vault
     function getVault(uint256 _vaultId) public view returns (address _owner, uint256 _balance) {
         _owner = vaults[_vaultId].owner;
         _balance = vaults[_vaultId].balance;
     }
-
 
     // Returns the IDs of the tasks the users owns.
     function getVaultsLength() public view returns (uint256) {
