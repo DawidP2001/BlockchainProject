@@ -202,4 +202,8 @@ contract VaultManagerTest is Test {
         uint256[] memory aliceVaults = vaultManager.getMyVaults();
         assertEq(aliceVaults.length, 0, "Alice should have 0 vaults");
     }
+
+    /*//////////////////////////////////////////
+        TESTING ADDITIONAL FEATURE SECTION
+    *//////////////////////////////////////////
 }

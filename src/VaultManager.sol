@@ -88,4 +88,30 @@ contract VaultManager {
     function getMyVaults() public view returns (uint256[] memory){
         return vaultsByOwner[msg.sender];
     }
+    
+    /*///////////////////////////////////////////
+            ADDITIONAL FEATURES SECTION
+    This additional feature is used for subscriptions, this allows the user to create suscriptions. 
+    A user can create a deposit subscription if they have a vault for saving. The user can also create a whithdraw 
+    subscription either to take money to their account or to send it to another account to pay for service. 
+    The user is also able to cancel the subscription at any time. The user can also check the status of the 
+    subscription. 
+    *////////////////////////////////////////////
+    function createDepositSubscription(uint256 _vaultId, uint256 amount, uint256 interval) public onlyOwner(_vaultId) {
+        // Create a deposit subscription
+        // This is a placeholder function, implement the logic as needed
+    }
+    function createWithdrawSubscription(uint256 _vaultId, uint256 amount, uint256 interval) public onlyOwner(_vaultId) {
+        // Create a withdraw subscription
+        // This is a placeholder function, implement the logic as needed
+    }
+    function cancelSubscription(uint256 _vaultId) public onlyOwner(_vaultId) {
+        // Cancel a subscription
+        // This is a placeholder function, implement the logic as needed
+    }
+    function checkSubscriptionStatus(uint256 _vaultId) public view returns (string memory) {
+        // Check the status of a subscription
+        // This is a placeholder function, implement the logic as needed
+        return "Subscription status"; // Placeholder return value
+    }
 }
