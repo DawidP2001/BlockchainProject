@@ -90,28 +90,103 @@ contract VaultManager {
     }
     
     /*///////////////////////////////////////////
-            ADDITIONAL FEATURES SECTION
+            ADDITIONAL FEATURE SECTION
     This additional feature is used for subscriptions, this allows the user to create suscriptions. 
     A user can create a deposit subscription if they have a vault for saving. The user can also create a whithdraw 
     subscription either to take money to their account or to send it to another account to pay for service. 
     The user is also able to cancel the subscription at any time. The user can also check the status of the 
     subscription. 
     *////////////////////////////////////////////
-    function createDepositSubscription(uint256 _vaultId, uint256 amount, uint256 interval) public onlyOwner(_vaultId) {
-        // Create a deposit subscription
-        // This is a placeholder function, implement the logic as needed
+    struct Subscription {
+        uint256 _vaultId; // The vault associated with the subscription
+        address owner; // The owner of the subscription
+        address targetAddress; // The target address for the subscription
+        uint256 amount; // Amount to deposit or withdraw
+        uint256 interval; // Interval for the subscription
+        uint256 lastExecuted; // Timestamp of the last execution
+        uint256 subType; // 0-deposit, 1-withdraw, 2-transfer
+        bool isActive; // Status of the subscription
     }
-    function createWithdrawSubscription(uint256 _vaultId, uint256 amount, uint256 interval) public onlyOwner(_vaultId) {
-        // Create a withdraw subscription
-        // This is a placeholder function, implement the logic as needed
+    Subscription[] public subscriptions;
+    mapping(address => uint256[]) public subscriptionsByOwner; // Mapping of vault ID to subscription
+
+    event subscriptionCreated(uint256 id, address owner);
+    event subscriptionCancelled(uint256 id, address owner);
+    event subscriptionExecuted(uint256 id, address owner, uint256 amount);
+    // Create a deposit subscription
+    modifier onlySubOwner(uint256 _subId) {
+        // Makes sure only owner can access
+        if (subscriptions[_subId].owner != msg.sender) {
+            revert Unauthorised();
+        }
+        _;
     }
-    function cancelSubscription(uint256 _vaultId) public onlyOwner(_vaultId) {
-        // Cancel a subscription
-        // This is a placeholder function, implement the logic as needed
+    function createSubscription(uint256 _vaultId, uint256 amount, uint256 interval, address targetAddress, uint256 subType) public onlyOwner(_vaultId) returns (uint256 _subID){
+        Subscription memory subscription = Subscription({
+            _vaultId: _vaultId,
+            owner: msg.sender,
+            targetAddress: targetAddress,
+            amount: amount,
+            interval: interval,
+            lastExecuted: block.timestamp,
+            subType: subType,
+            isActive: true
+        });
+        subscriptions.push(subscription);
+        _subID = subscriptions.length - 1;
+        vaultsByOwner[msg.sender].push(_subID);
+        emit subscriptionCreated(_subID, msg.sender);
     }
-    function checkSubscriptionStatus(uint256 _vaultId) public view returns (string memory) {
-        // Check the status of a subscription
-        // This is a placeholder function, implement the logic as needed
-        return "Subscription status"; // Placeholder return value
+    // This function cancels a subscription
+    function cancelSubscription(uint256 _subID) public onlySubOwner(_subID) {
+        // The subscription is cancelled by setting the isActive flag to false
+        subscriptions[_subID].isActive = false;
+        // Remove the subscription from the array
+        subscriptions[_subID] = subscriptions[subscriptions.length - 1];
+        subscriptions.pop();
+        emit subscriptionCancelled(_subID, msg.sender);
+    }
+    // This function executes the subscriptions of a user
+    function executeSubscriptions() public payable{
+        // Since the subscriptions are taken from the vaultsByOwner mapping, we can loop through the subscriptions of the user
+        // and don't need to use a modifer to check if the user is the owner of the subscription
+        uint256[] storage subIDsArray = subscriptionsByOwner[msg.sender];
+        for (uint256 i = 0; i < subIDsArray.length; i++) {
+            Subscription storage subscription = subscriptions[subIDsArray[i]];
+            // If subscription is active and the interval has passed -> execute the subscription
+            if (subscription.isActive && block.timestamp >= subscription.lastExecuted + subscription.interval) {
+                if (subscription.subType == 0) {
+                    // Deposit
+                    vaults[subscription._vaultId].balance += msg.value;
+                    emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                } else if (subscription.subType == 1) {
+                    // Withdraw
+                    require(vaults[subscription._vaultId].balance >= subscription.amount, "Insufficient balance");
+                    vaults[subscription._vaultId].balance -= subscription.amount;
+                    payable(subscription.owner).transfer(subscription.amount);
+                    emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                } else if (subscription.subType == 2) {
+                    // Transfer
+                    require(vaults[subscription._vaultId].balance >= subscription.amount, "Insufficient balance");
+                    vaults[subscription._vaultId].balance -= subscription.amount;
+                    payable(subscription.targetAddress).transfer(subscription.amount);
+                    emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                }
+                subscription.lastExecuted = block.timestamp;
+            }
+        }
+    }
+    function getSubscription(uint256 _subId) public view returns (uint256, uint256, bool) {
+        // Get subscription details
+        Subscription memory subscription = subscriptions[_subId];
+        return (subscription.amount, subscription.interval, subscription.isActive);
+    }
+    function getMySubscriptions() public view returns (uint256[] memory) {
+        // Get all subscriptions for the message sender
+        return subscriptionsByOwner[msg.sender];
+    }
+    function getSubscriptionsLength() public view returns (uint256) {
+        // Get the length of the subscriptions array
+        return subscriptions.length;
     }
 }

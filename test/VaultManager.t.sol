@@ -203,7 +203,95 @@ contract VaultManagerTest is Test {
         assertEq(aliceVaults.length, 0, "Alice should have 0 vaults");
     }
 
-    /*//////////////////////////////////////////
-        TESTING ADDITIONAL FEATURE SECTION
-    *//////////////////////////////////////////
+
+    /*/////////////////////////////////////////////////////
+                TESTING ADDITIONAL FEATURE SECTION
+    *//////////////////////////////////////////////////////
+
+    /*////////////////////////////////////////// 
+        Testing createSubscription function
+    *////////////////////////////////////////// 
+    // Tests createSubscription with invalid parameters
+    function testCreateSubscriptionInvalidParams() public{
+
+    }
+    // Tests createSubscription with valid parameters
+    function testCreateSubscription() public{
+
+    }
+    /*////////////////////////////////////////// 
+        Testing cancelSubscription function
+    *////////////////////////////////////////// 
+    function testCancelSubscription() public{
+
+    }
+    function testCancelSubscriptionValidParams() public{
+
+    }
+    /*////////////////////////////////////////// 
+        Testing executeSubscription function
+    *////////////////////////////////////////// 
+    function testExecuteSubscription() public{
+
+    }
+    // This tests the case where the subscription is not active
+    function testExecuteSubscriptionNotActive() public{
+
+    }
+    // This test where the first subscription is invalid
+    function testExecuteSubscriptionFirstInvalid() public{
+
+    }
+    // This test where the middle subscription is invalid
+    function testExecuteSubscriptionMiddleInvalid() public{
+
+    }
+    // This tests where the last subscription is invalid
+    function testExecuteSubscriptionLastInvalid() public{
+
+    }
+    // This tests when a deposit has isufficient balance
+    function testExecuteSubscriptionDepositInsufficientBalance() public{
+
+    }
+    // This tests when a withdraw has isufficient balance
+    function testExecuteSubscriptionWithdrawInsufficientBalance() public{
+
+    }
+    // This tests when a transfer has isufficient balance
+    function testExecuteSubscriptionTransferInsufficientBalance() public{
+
+    }
+    /*////////////////////////////////////////// 
+        Testing getSubscription function
+    *////////////////////////////////////////// 
+    // Tests getSubscription with valid subscription ID
+    function testGetSubscription() public{
+
+    }
+    // Test getSubscription with invalid subscription ID
+    function testGetSubscriptionInvalidId() public{
+
+    }
+    /*////////////////////////////////////////// 
+        Testing getMySubscriptions function
+    *////////////////////////////////////////// 
+    // Tests getMySubscriptions with multiple subscriptions
+    function testgetMySubscriptions() public{
+        
+    }
+    // Tests case for when mySubscriptions is empty
+    function testgetMySubscriptionsEmpty() public{
+        
+    }
+    /*////////////////////////////////////////// 
+        Testing getSubscriptionsLength function
+    *////////////////////////////////////////// 
+    function testGetSubscriptionsLengthLowLength() public view{
+        
+    }
+    // Tests getSubscriptionsLength with multiple subscriptions
+    function testGetSubscriptionsLength() public{
+        
+    }
 }
