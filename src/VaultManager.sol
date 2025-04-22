@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
-
 // Create an error type.
 error Unauthorised();
 
@@ -93,15 +92,22 @@ contract VaultManager {
             ADDITIONAL FEATURE SECTION
     This additional feature is used for subscriptions, this allows the user to create suscriptions. 
     A user can create a deposit subscription if they have a vault for saving. The user can also create a whithdraw 
-    subscription either to take money to their account or to send it to another account to pay for service. 
-    The user is also able to cancel the subscription at any time. The user can also check the status of the 
-    subscription. 
+    subscription either to take money to their account. Also there is a transfer subscription, this allows the user to
+    transfer money to another address. The user can set the amount, interval and target address for the subscription. 
+    The user is also able to cancel the subscription at any time. 
+    
+    How the subscription works:
+        1. Creates subscription specifies parameters such as type of subscription.
+        2. The user once a week or once a month can execute the executeSubscriptions function which
+            checks all their subscriptions to see if they're interval is up and should be executed.
+            Optionally the user can use an external service to execute the function for them.
+        Optional: user can cancel the subscription at any time.
     *////////////////////////////////////////////
     struct Subscription {
         uint256 _vaultId; // The vault associated with the subscription
         address owner; // The owner of the subscription
-        address targetAddress; // The target address for the subscription
-        uint256 amount; // Amount to deposit or withdraw
+        address targetAddress; // The target address is only used for transfers
+        uint256 amount; // Amount to deposit, withdraw or transfer
         uint256 interval; // Interval for the subscription
         uint256 lastExecuted; // Timestamp of the last execution
         uint256 subType; // 0-deposit, 1-withdraw, 2-transfer
@@ -110,31 +116,41 @@ contract VaultManager {
     Subscription[] public subscriptions;
     mapping(address => uint256[]) public subscriptionsByOwner; // Mapping of vault ID to subscription
 
+    // Events for subscription creation, cancellation and execution and error
     event subscriptionCreated(uint256 id, address owner);
     event subscriptionCancelled(uint256 id, address owner);
     event subscriptionExecuted(uint256 id, address owner, uint256 amount);
+    event SubscriptionError(uint256 subId, uint256 vaultID, string reason);
+    
     // Create a deposit subscription
     modifier onlySubOwner(uint256 _subId) {
         // Makes sure only owner can access
+        require(_subId < subscriptions.length, "Subscription does not exist"); // Explicit check for valid ID
         if (subscriptions[_subId].owner != msg.sender) {
             revert Unauthorised();
         }
         _;
     }
+    // This function creates a subscription
+    // The subscription can be a deposit, withdraw or transfer subscription
     function createSubscription(uint256 _vaultId, uint256 amount, uint256 interval, address targetAddress, uint256 subType) public onlyOwner(_vaultId) returns (uint256 _subID){
+        require(amount > 0, "Amount must be greater than 0");
+        require(interval > 0, "Interval must be greater than 0");
+        require(_vaultId < vaults.length, "Vault does not exist"); // Explicit check for valid ID
+        require(subType <= 2 && subType >=0, "Invalid subscription type"); // Check for valid subscription type
         Subscription memory subscription = Subscription({
             _vaultId: _vaultId,
             owner: msg.sender,
             targetAddress: targetAddress,
             amount: amount,
             interval: interval,
-            lastExecuted: block.timestamp,
+            lastExecuted: 0,
             subType: subType,
             isActive: true
         });
         subscriptions.push(subscription);
         _subID = subscriptions.length - 1;
-        vaultsByOwner[msg.sender].push(_subID);
+        subscriptionsByOwner[msg.sender].push(_subID);
         emit subscriptionCreated(_subID, msg.sender);
     }
     // This function cancels a subscription
@@ -144,47 +160,88 @@ contract VaultManager {
         // Remove the subscription from the array
         subscriptions[_subID] = subscriptions[subscriptions.length - 1];
         subscriptions.pop();
+        // Remove the subscription from the subscriptionsByOwner mapping
+        uint256[] storage userSubscriptions = subscriptionsByOwner[msg.sender];
+        for (uint256 i = 0; i < userSubscriptions.length; i++) {
+            if (userSubscriptions[i] == _subID) {
+                userSubscriptions[i] = userSubscriptions[userSubscriptions.length - 1];
+                userSubscriptions.pop();
+                break;
+            }
+        }
         emit subscriptionCancelled(_subID, msg.sender);
     }
+
     // This function executes the subscriptions of a user
     function executeSubscriptions() public payable{
         // Since the subscriptions are taken from the vaultsByOwner mapping, we can loop through the subscriptions of the user
         // and don't need to use a modifer to check if the user is the owner of the subscription
         uint256[] storage subIDsArray = subscriptionsByOwner[msg.sender];
+        uint256 totalUsed = 0; // This is used to track how much sender spend on deposits
         for (uint256 i = 0; i < subIDsArray.length; i++) {
             Subscription storage subscription = subscriptions[subIDsArray[i]];
             // If subscription is active and the interval has passed -> execute the subscription
-            if (subscription.isActive && block.timestamp >= subscription.lastExecuted + subscription.interval) {
+            if (subscription.isActive && (block.timestamp >= subscription.lastExecuted + subscription.interval)) {
                 if (subscription.subType == 0) {
                     // Deposit
-                    vaults[subscription._vaultId].balance += msg.value;
-                    emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                    if(totalUsed + subscription.amount <= msg.value){
+                        totalUsed += subscription.amount;
+                        vaults[subscription._vaultId].balance += subscription.amount;
+                        emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                    }
+                    else {
+                        emit SubscriptionError(subIDsArray[i], subscription._vaultId, "Not enough ether sent for deposit subscription");
+                        continue;
+                    }
+
                 } else if (subscription.subType == 1) {
                     // Withdraw
-                    require(vaults[subscription._vaultId].balance >= subscription.amount, "Insufficient balance");
-                    vaults[subscription._vaultId].balance -= subscription.amount;
-                    payable(subscription.owner).transfer(subscription.amount);
-                    emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                    if(vaults[subscription._vaultId].balance >= subscription.amount){
+                        vaults[subscription._vaultId].balance -= subscription.amount;
+                        payable(subscription.owner).transfer(subscription.amount);
+                        emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                    }
+                    else {
+                        emit SubscriptionError(subIDsArray[i], subscription._vaultId, "Not enough balance in vault for withdraw subscription");
+                        continue;
+                    }
+
                 } else if (subscription.subType == 2) {
                     // Transfer
-                    require(vaults[subscription._vaultId].balance >= subscription.amount, "Insufficient balance");
-                    vaults[subscription._vaultId].balance -= subscription.amount;
-                    payable(subscription.targetAddress).transfer(subscription.amount);
-                    emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                    if(vaults[subscription._vaultId].balance >= subscription.amount){
+                        vaults[subscription._vaultId].balance -= subscription.amount;
+                        payable(subscription.targetAddress).transfer(subscription.amount);
+                        emit subscriptionExecuted(subscription._vaultId, msg.sender, subscription.amount);
+                    } else {
+                        emit SubscriptionError(subIDsArray[i], subscription._vaultId, "Not enough balance in vault for transfer subscription");
+                        continue;
+                    }
                 }
                 subscription.lastExecuted = block.timestamp;
             }
         }
+        // Return any leftover ether to the sender
+        uint256 leftover = msg.value - totalUsed;
+        if (leftover > 0) {
+        payable(msg.sender).transfer(leftover);
+        }
     }
-    function getSubscription(uint256 _subId) public view returns (uint256, uint256, bool) {
+    function getSubscription(uint256 _subId) public view returns (uint256 id, address owner, uint256 amount, uint256 interval, address recipient, uint256 subType, bool active) {
         // Get subscription details
-        Subscription memory subscription = subscriptions[_subId];
-        return (subscription.amount, subscription.interval, subscription.isActive);
+        require(_subId < subscriptions.length, "Subscription does not exist"); // Explicit check for valid ID
+        id = subscriptions[_subId]._vaultId;
+        owner = subscriptions[_subId].owner;
+        amount = subscriptions[_subId].amount;
+        interval = subscriptions[_subId].interval;
+        recipient = subscriptions[_subId].targetAddress;
+        subType = subscriptions[_subId].subType;
+        active = subscriptions[_subId].isActive;
     }
     function getMySubscriptions() public view returns (uint256[] memory) {
         // Get all subscriptions for the message sender
         return subscriptionsByOwner[msg.sender];
     }
+
     function getSubscriptionsLength() public view returns (uint256) {
         // Get the length of the subscriptions array
         return subscriptions.length;
